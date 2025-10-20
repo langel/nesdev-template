@@ -1,0 +1,1277 @@
+------- FILE new_name.asm LEVEL 1 PASS 2
+      1  12000 ????
+      2  12000 ????				       processor	6502
+      3  12000 ????
+------- FILE definitions.asm LEVEL 2 PASS 2
+      0  12000 ????				       include	"definitions.asm"
+      1  12000 ????
+      2  12000 ????
+      3  12000 ????						;;;;; CONSTANTS
+      4  12000 ????
+      5  12000 ????			    PPU_CTRL   EQM	$2000
+      6  12000 ????			    PPU_MASK   EQM	$2001
+      7  12000 ????			    PPU_STATUS EQM	$2002
+      8  12000 ????			    OAM_ADDR   EQM	$2003
+      9  12000 ????			    OAM_DATA   EQM	$2004
+     10  12000 ????			    PPU_SCROLL EQM	$2005
+     11  12000 ????			    PPU_ADDR   EQM	$2006
+     12  12000 ????			    PPU_DATA   EQM	$2007
+     13  12000 ????
+     14  12000 ????			    PPU_OAM_DMA EQM	$4014
+     15  12000 ????			    DMC_FREQ   EQM	$4010
+     16  12000 ????			    APU_STATUS EQM	$4015
+     17  12000 ????			    APU_NOISE_VOL EQM	$400C
+     18  12000 ????			    APU_NOISE_FREQ EQM	$400E
+     19  12000 ????			    APU_NOISE_TIMER EQM	$400F
+     20  12000 ????			    APU_DMC_CTRL EQM	$4010
+     21  12000 ????			    APU_CHAN_CTRL EQM	$4015
+     22  12000 ????			    APU_FRAME  EQM	$4017
+     23  12000 ????
+     24  12000 ????			    JOYPAD1    EQM	$4016
+     25  12000 ????			    JOYPAD2    EQM	$4017
+     26  12000 ????
+     27  12000 ????			    BANK_SELECT EQM	$8000
+     28  12000 ????			    BANK_DATA  EQM	$8001
+     29  12000 ????			    MIRRORING  EQM	$a000
+     30  12000 ????			    RAM_PROTECT EQM	$a001
+     31  12000 ????			    IRQ_LATCH  EQM	$c000
+     32  12000 ????			    IRQ_RELOAD EQM	$c001
+     33  12000 ????			    IRQ_DISABLE EQM	$e000
+     34  12000 ????			    IRQ_ENABLE EQM	$e001
+     35  12000 ????
+     36  12000 ????						; NOTE: I've put this outside of the PPU & APU, because it is a feature
+     37  12000 ????						; of the APU that is primarily of use to the PPU.
+     38  12000 ????			    OAM_DMA    EQM	$4014
+     39  12000 ????						; OAM local RAM copy goes from $0200-$02FF:
+     40  12000 ????			    OAM_RAM    EQM	$0200
+     41  12000 ????
+     42  12000 ????						; PPU_CTRL flags
+     43  12000 ????			    CTRL_NMI   EQM	%10000000	; Execute Non-Maskable Interrupt on VBlank
+     44  12000 ????			    CTRL_8x8   EQM	%00000000	; Use 8x8 Sprites
+     45  12000 ????			    CTRL_8x16  EQM	%00100000	; Use 8x16 Sprites
+     46  12000 ????			    CTRL_BG_0000 EQM	%00000000	; Background Pattern Table at $0000 in VRAM
+     47  12000 ????			    CTRL_BG_1000 EQM	%00010000	; Background Pattern Table at $1000 in VRAM
+     48  12000 ????			    CTRL_SPR_0000 EQM	%00000000	; Sprite Pattern Table at $0000 in VRAM
+     49  12000 ????			    CTRL_SPR_1000 EQM	%00001000	; Sprite Pattern Table at $1000 in VRAM
+     50  12000 ????			    CTRL_INC_1 EQM	%00000000	; Increment PPU Address by 1 (Horizontal rendering)
+     51  12000 ????			    CTRL_INC_32 EQM	%00000100	; Increment PPU Address by 32 (Vertical rendering)
+     52  12000 ????			    CTRL_NT_2000 EQM	%00000000	; Name Table Address at $2000
+     53  12000 ????			    CTRL_NT_2400 EQM	%00000001	; Name Table Address at $2400
+     54  12000 ????			    CTRL_NT_2800 EQM	%00000010	; Name Table Address at $2800
+     55  12000 ????			    CTRL_NT_2C00 EQM	%00000011	; Name Table Address at $2C00
+     56  12000 ????
+     57  12000 ????						; PPU_MASK flags
+     58  12000 ????			    MASK_TINT_RED EQM	%00100000	; Red Background
+     59  12000 ????			    MASK_TINT_BLUE EQM	%01000000	; Blue Background
+     60  12000 ????			    MASK_TINT_GREEN EQM	%10000000	; Green Background
+     61  12000 ????			    MASK_SPR   EQM	%00010000	; Sprites Visible
+     62  12000 ????			    MASK_BG    EQM	%00001000	; Backgrounds Visible
+     63  12000 ????			    MASK_SPR_CLIP EQM	%00000100	; Sprites clipped on left column
+     64  12000 ????			    MASK_BG_CLIP EQM	%00000010	; Background clipped on left column
+     65  12000 ????			    MASK_COLOR EQM	%00000000	; Display in Color
+     66  12000 ????			    MASK_MONO  EQM	%00000001	; Display in Monochrome
+     67  12000 ????
+     68  12000 ????						; read flags
+     69  12000 ????			    F_BLANK    EQM	%10000000	; VBlank Active
+     70  12000 ????			    F_SPRITE0  EQM	%01000000	; VBlank hit Sprite 0
+     71  12000 ????			    F_SCAN8    EQM	%00100000	; More than 8 sprites on current scanline
+     72  12000 ????			    F_WIGNORE  EQM	%00010000	; VRAM Writes currently ignored.
+     73  12000 ????
+     74  12000 ????
+     75  12000 ????						;;;;; CARTRIDGE FILE HEADER
+     76  12000 ????
+     77  12000 ????			    NES_MIRR_HORIZ EQM	0
+     78  12000 ????			    NES_MIRR_VERT EQM	1
+     79  12000 ????			    NES_MIRR_QUAD EQM	8
+     80  12000 ????
+     81  12000 ????				       MAC	nes_header
+     82  12000 ????				       seg	Header
+     83  12000 ????				       org	$7ff0
+     84  12000 ????			    .NES_MAPPER SET	{1}	;mapper number
+     85  12000 ????			    .NES_PRG_BANKS SET	{2}	;number of 16K PRG banks, change to 2 for NROM256
+     86  12000 ????			    .NES_CHR_BANKS SET	{3}	;number of 8K CHR banks (0 = RAM)
+     87  12000 ????			    .NES_MIRRORING SET	{4}	;0 horizontal, 1 vertical, 8 four screen
+     88  12000 ????			    .NES_RAM_EXP SET	{5}	;0 false, 1 8K extra ram
+     89  12000 ????				       byte	$4e,$45,$53,$1a	; header
+     90  12000 ????				       byte	.NES_PRG_BANKS
+     91  12000 ????				       byte	.NES_CHR_BANKS
+     92  12000 ????				       byte	.NES_MIRRORING|(.NES_MAPPER<<4)|.NES_RAM_EXP
+     93  12000 ????				       byte	.NES_MAPPER&$f0
+     94  12000 ????				       byte	0,0,0,0,0,0,0,0	; reserved, set to zero
+     95  12000 ????				       seg	Code
+     96  12000 ????				       org	$8000
+     97  12000 ????				       ENDM
+     98  12000 ????
+     99  12000 ????						;;;;; NES_INIT SETUP MACRO (place at start)
+    100  12000 ????				       MAC	nes_init
+    101  12000 ????				       sei		;disable IRQs
+    102  12000 ????				       cld		;decimal mode not supported
+    103  12000 ????				       ldx	#$ff
+    104  12000 ????				       txs		;set up stack pointer
+    105  12000 ????				       inx		;increment X to 0
+    106  12000 ????				       stx	PPU_MASK	;disable rendering
+    107  12000 ????				       stx	DMC_FREQ	;disable DMC interrupts
+    108  12000 ????				       stx	PPU_CTRL	;disable NMI interrupts
+    109  12000 ????				       bit	PPU_STATUS	;clear VBL flag
+    110  12000 ????				       bit	APU_CHAN_CTRL	;ack DMC IRQ bit 7
+    111  12000 ????				       lda	#$40
+    112  12000 ????				       sta	APU_FRAME	;disable APU Frame IRQ
+    113  12000 ????				       lda	#$0F
+    114  12000 ????				       sta	APU_CHAN_CTRL	;disable DMC, enable/init other channels.	  
+    115  12000 ????				       ENDM
+    116  12000 ????
+    117  12000 ????						;;;;; NES_VECTORS - CPU vectors at end of address space
+    118  12000 ????				       MAC	nes_vectors
+    119  12000 ????				       seg	Vectors	; segment "Vectors"
+    120  12000 ????				       org	$fffa	; start at address $fffa
+    121  12000 ????				       .word	NMIHandler	; $fffa vblank nmi
+    122  12000 ????				       .word	Start	; $fffc reset
+    123  12000 ????				       .word	NMIHandler	; $fffe irq / brk
+    124  12000 ????				       ENDM
+    125  12000 ????
+    126  12000 ????						;;;;; BANK_SET <select> <data>
+    127  12000 ????				       MAC	bank_set
+    128  12000 ????				       lda	{1}
+    129  12000 ????				       sta	BANK_SELECT
+    130  12000 ????				       lda	{2}
+    131  12000 ????				       sta	BANK_DATA
+    132  12000 ????				       ENDM
+    133  12000 ????
+    134  12000 ????						;;;;; PPU_SETADDR <address> - set 16-bit PPU address
+    135  12000 ????				       MAC	ppu_addr_set
+    136  12000 ????				       lda	#>{1}	; upper byte
+    137  12000 ????				       sta	PPU_ADDR
+    138  12000 ????				       lda	#<{1}	; lower byte
+    139  12000 ????				       sta	PPU_ADDR
+    140  12000 ????				       ENDM
+    141  12000 ????
+    142  12000 ????						;;;;; PPU_SETVALUE <value> - feed 8-bit value to PPU
+    143  12000 ????				       MAC	ppu_setvalue
+    144  12000 ????				       lda	#{1}
+    145  12000 ????				       sta	PPU_DATA
+    146  12000 ????				       ENDM
+    147  12000 ????
+    148  12000 ????				       MAC	ppu_decimal_00
+    149  12000 ????				       asl
+    150  12000 ????				       tax
+    151  12000 ????				       lda	decimal_99_text_offset_80,x
+    152  12000 ????				       sta	PPU_DATA
+    153  12000 ????				       inx
+    154  12000 ????				       lda	decimal_99_text_offset_80,x
+    155  12000 ????				       sta	PPU_DATA
+    156  12000 ????				       ENDM
+    157  12000 ????
+    158  12000 ????				       MAC	ppu_decimal_x0
+    159  12000 ????				       asl
+    160  12000 ????				       tax
+    161  12000 ????				       lda	decimal_x9_text_offset_80,x
+    162  12000 ????				       sta	PPU_DATA
+    163  12000 ????				       inx
+    164  12000 ????				       lda	decimal_x9_text_offset_80,x
+    165  12000 ????				       sta	PPU_DATA
+    166  12000 ????				       ENDM
+    167  12000 ????
+    168  12000 ????				       MAC	ppu_fill
+    169  12000 ????						; sends {1} to ppu data {2} times
+    170  12000 ????				       REPEAT	{2}
+    171  12000 ????				       lda	#{1}
+    172  12000 ????				       sta	PPU_DATA
+    173  12000 ????				       REPEND
+    174  12000 ????				       ENDM
+    175  12000 ????
+    176  12000 ????				       MAC	ppu_loop
+    177  12000 ????				       lda	#{1}
+    178  12000 ????				       ldx	#{2}
+    179  12000 ????			    .loop
+    180  12000 ????				       sta	PPU_DATA
+    181  12000 ????				       dex
+    182  12000 ????				       bne	.loop
+    183  12000 ????				       ENDM
+    184  12000 ????
+    185  12000 ????				       MAC	ppu_plot
+    186  12000 ????			    .COUNT     SET	0
+    187  12000 ????				       REPEAT	{2}
+    188  12000 ????				       lda	#{1}+.COUNT
+    189  12000 ????				       sta	PPU_DATA
+    190  12000 ????			    .COUNT     SET	.COUNT+1
+    191  12000 ????				       REPEND
+    192  12000 ????				       ENDM
+    193  12000 ????
+    194  12000 ????						;;;;; PPU_POPSLIDE <count>
+    195  12000 ????				       MAC	ppu_popslide
+    196  12000 ????			    .COUNT     SET	{1}
+    197  12000 ????				       REPEAT	.COUNT
+    198  12000 ????				       pla
+    199  12000 ????				       sta	PPU_DATA
+    200  12000 ????				       REPEND
+    201  12000 ????				       ENDM
+    202  12000 ????
+    203  12000 ????				       MAC	blit
+    204  12000 ????			    .COUNT     SET	{1}
+    205  12000 ????				       REPEAT	.COUNT
+    206  12000 ????				       bit	$2002
+    207  12000 ????				       REPEND
+    208  12000 ????				       ENDM
+    209  12000 ????
+    210  12000 ????				       MAC	nops
+    211  12000 ????			    .COUNT     SET	{1}
+    212  12000 ????				       REPEAT	.COUNT
+    213  12000 ????				       nop
+    214  12000 ????				       REPEND
+    215  12000 ????				       ENDM
+    216  12000 ????
+    217  12000 ????				       MAC	shift_l
+    218  12000 ????			    .COUNT     SET	{1}
+    219  12000 ????				       REPEAT	.COUNT
+    220  12000 ????				       asl
+    221  12000 ????				       REPEND
+    222  12000 ????				       ENDM
+    223  12000 ????
+    224  12000 ????				       MAC	shift_r
+    225  12000 ????			    .COUNT     SET	{1}
+    226  12000 ????				       REPEAT	.COUNT
+    227  12000 ????				       lsr
+    228  12000 ????				       REPEND
+    229  12000 ????				       ENDM
+    230  12000 ????
+    231  12000 ????						;;;;; MMC3 stuff
+    232  12000 ????				       MAC	irq_set
+    233  12000 ????				       lda	{1}
+    234  12000 ????				       sta	$c000	; latch
+    235  12000 ????				       sta	$c001	; reload
+    236  12000 ????				       sta	$e001	; enable
+    237  12000 ????				       ENDM
+    238  12000 ????
+    239  12000 ????				       MAC	irq_update
+    240  12000 ????				       sta	$c000	; latch
+    241  12000 ????				       sta	$e001	; enable
+    242  12000 ????				       sta	$c001	; reload
+    243  12000 ????				       ENDM
+    244  12000 ????
+    245  12000 ????				       MAC	irq_disable
+    246  12000 ????				       sta	$e000	; disable
+    247  12000 ????				       ENDM
+    248  12000 ????
+    249  12000 ????						; example of iterator with index
+    250  12000 ????				       MAC	state_char_equip_anim_popslider
+    251  12000 ????				       count	SET 0
+    252  12000 ????			    .loop      SET	{1}
+    253  12000 ????				       REPEAT	.loop
+    254  12000 ????				       lda	$0120 + {2} + count
+    255  12000 ????				       sta	PPU_DATA
+    256  12000 ????				       count	SET count + 1
+    257  12000 ????				       REPEND
+    258  12000 ????				       ENDM
+    259  12000 ????
+    260  12000 ????						;;;;; STATE RESET
+    261  12000 ????				       MAC	state_registers_reset
+    262  12000 ????				       lda	#$00
+    263  12000 ????				       sta	state00
+    264  12000 ????				       sta	state01
+    265  12000 ????				       sta	state02
+    266  12000 ????				       sta	state03
+    267  12000 ????				       sta	state04
+    268  12000 ????				       sta	state05
+    269  12000 ????				       sta	state06
+    270  12000 ????				       sta	state07
+    271  12000 ????				       sta	scroll_x
+    272  12000 ????				       sta	scroll_y
+    273  12000 ????				       ENDM
+    274  12000 ????
+    275  12000 ????						;;;;; SAVE_REGS - save A/X/Y registers
+    276  12000 ????				       MAC	save_regs
+    277  12000 ????				       pha
+    278  12000 ????				       txa
+    279  12000 ????				       pha
+    280  12000 ????				       tya
+    281  12000 ????				       pha
+    282  12000 ????				       ENDM
+    283  12000 ????
+    284  12000 ????						;;;;; RESTORE_REGS - restore Y/X/A registers
+    285  12000 ????				       MAC	restore_regs
+    286  12000 ????				       pla
+    287  12000 ????				       tay
+    288  12000 ????				       pla
+    289  12000 ????				       tax
+    290  12000 ????				       pla
+    291  12000 ????				       ENDM
+    292  12000 ????
+    293  12000 ????
+    294  12000 ????						;-------------------------------------------------------------------------------
+    295  12000 ????						; SLEEP clockcycles
+    296  12000 ????						; Original author: Thomas Jentzsch
+    297  12000 ????						; Inserts code which takes the specified number of cycles to execute.	This is
+    298  12000 ????						; useful for code where precise timing is required.
+    299  12000 ????						; LEGAL OPCODE VERSION MAY AFFECT FLAGS (uses 'bit' opcode)
+    300  12000 ????
+    301  12000 ????			    NO_ILLEGAL_OPCODES EQM	1
+    302  12000 ????
+    303  12000 ????				       MAC	sleep
+    304  12000 ????			    .CYCLES    SET	{1}
+    305  12000 ????				       IF	.CYCLES < 2
+    306  12000 ????				       ECHO	"MACRO ERROR: 'SLEEP': Duration must be > 1"
+    307  12000 ????				       ERR
+    308  12000 ????				       ENDIF
+    309  12000 ????				       IF	.CYCLES & 1
+    310  12000 ????				       IFNCONST	NO_ILLEGAL_OPCODES
+    311  12000 ????				       nop	0
+    312  12000 ????				       ELSE
+    313  12000 ????				       bit	$00
+    314  12000 ????				       ENDIF
+    315  12000 ????				       .CYCLES	SET .CYCLES - 3
+    316  12000 ????				       ENDIF
+    317  12000 ????				       REPEAT	.CYCLES / 2
+    318  12000 ????				       nop
+    319  12000 ????				       REPEND
+    320  12000 ????				       ENDM		;usage: SLEEP n (n>1)
+------- FILE new_name.asm
+------- FILE zero_page.asm LEVEL 2 PASS 2
+      0  12000 ????				       include	"zero_page.asm"
+      1  12000 ????						;;;;; VARIABLES
+      2  12000 ????
+      3 U002e ????				      seg.u	ZEROPAGE
+      4 U0000					      org	$0
+      5 U0000
+      6 U0000		       00	   wtf	      byte.b
+      7 U0001		       00	   nmi_lockout byte.b		; *
+      8 U0002		       00	   temp00     byte.b
+      9 U0003		       00	   temp01     byte.b
+     10 U0004		       00	   temp02     byte.b
+     11 U0005		       00	   temp03     byte.b
+     12 U0006		       00	   temp04     byte.b
+     13 U0007		       00	   temp05     byte.b
+     14 U0008		       00	   temp06     byte.b
+     15 U0009		       00	   temp07     byte.b
+     16 U000a		       00	   state00    byte.b
+     17 U000b		       00	   state01    byte.b
+     18 U000c		       00	   state02    byte.b
+     19 U000d		       00	   state03    byte.b
+     20 U000e		       00	   state04    byte.b
+     21 U000f		       00	   state05    byte.b
+     22 U0010		       00	   state06    byte.b
+     23 U0011		       00	   state07    byte.b
+     24 U0012		       00	   rng0       byte.b
+     25 U0013		       00	   oam_disable byte.b		; *
+     26 U0014		       00	   controls   byte.b
+     27 U0015		       00	   controls_d byte.b
+     28 U0016		       00	   ppu_mask_emph byte.b		; *
+     29 U0017
+     30 U0017		       00	   state_jmp_lo byte.b
+     31 U0018		       00	   state_jmp_hi byte.b
+     32 U0019
+     33 U0019		       00	   timer_lo   byte.b
+     34 U001a		       00	   timer_hi   byte.b
+     35 U001b
+     36 U001b
+     37 U001b		       00	   scroll_x   byte.b
+     38 U001c		       00	   scroll_y   byte.b
+     39 U001d		       00	   scroll_nm  byte.b		; nametable
+     40 U001e
+     41 U001e
+     42 U001e
+     43 U001e		       00	   collision_0_x byte.b
+     44 U001f		       00	   collision_0_y byte.b
+     45 U0020		       00	   collision_0_w byte.b
+     46 U0021		       00	   collision_0_h byte.b
+     47 U0022		       00	   collision_1_x byte.b
+     48 U0023		       00	   collision_1_y byte.b
+     49 U0024		       00	   collision_1_w byte.b
+     50 U0025		       00	   collision_1_h byte.b
+     51 U0026		       00	   collis_char_x byte.b
+     52 U0027		       00	   collis_char_y byte.b
+     53 U0028
+     54 U0028		       00	   arctang_velocity_lo byte.b		; *
+     55 U0029		       00	   arctang_velocity_hi byte.b		; *
+     56 U002a
+     57 U002a		       00	   rng_seed0  byte.b
+     58 U002b		       00	   rng_seed1  byte.b
+     59 U002c		       00	   rng_val0   byte.b
+     60 U002d		       00	   rng_val1   byte.b
+     61 U002e
+     62 U002e
+------- FILE new_name.asm
+      6 U002e
+      7 U002e							; HEADER
+      8 U002e							; mapper, PRGs (16k), CHRs (8k), mirror, ram expansion
+      0 U002e					      NES_HEADER	0, 2, 1, NES_MIRR_HORIZ, 0
+      1  8000 ????				      seg	Header
+      2  7ff0					      org	$7ff0
+      3  7ff0				   .NES_MAPPER SET	0
+      4  7ff0				   .NES_PRG_BANKS SET	2
+      5  7ff0				   .NES_CHR_BANKS SET	1
+      6  7ff0				   .NES_MIRRORING SET	NES_MIRR_HORIZ
+      7  7ff0				   .NES_RAM_EXP SET	0
+      8  7ff0		       4e 45 53 1a	      byte.b	$4e,$45,$53,$1a
+      9  7ff4		       02		      byte.b	.NES_PRG_BANKS
+     10  7ff5		       01		      byte.b	.NES_CHR_BANKS
+     11  7ff6		       00		      byte.b	.NES_MIRRORING|(.NES_MAPPER<<4)|.NES_RAM_EXP
+     12  7ff7		       00		      byte.b	.NES_MAPPER&$f0
+     13  7ff8		       00 00 00 00*	      byte.b	0,0,0,0,0,0,0,0
+     14  8000 ????				      seg	Code
+     15  8000					      org	$8000
+     10  8000
+     11  e000 ????				      seg	DATA_BANKS
+     12  8000					      org	$08000
+     13  8000					      rorg	$8000
+     14  8000				   main_layout_nam
+     15  8000					      incbin	"main_layout.nam"
+------- FILE vectors.asm LEVEL 2 PASS 2
+      0  8000					      include	"vectors.asm"
+      1  8000
+      2  8000				   cart_start subroutine
+      0  8000					      NES_INIT		; set up stack pointer, turn off PPU
+      1  8000		       78		      sei
+      2  8001		       d8		      cld
+      3  8002		       a2 ff		      ldx	#$ff
+      4  8004		       9a		      txs
+      5  8005		       e8		      inx
+      6  8006		       8e 01 20 	      stx	PPU_MASK
+      7  8009		       8e 10 40 	      stx	DMC_FREQ
+      8  800c		       8e 00 20 	      stx	PPU_CTRL
+      9  800f		       2c 02 20 	      bit	PPU_STATUS
+     10  8012		       2c 15 40 	      bit	APU_CHAN_CTRL
+     11  8015		       a9 40		      lda	#$40
+     12  8017		       8d 17 40 	      sta	APU_FRAME
+     13  801a		       a9 0f		      lda	#$0F
+     14  801c		       8d 15 40 	      sta	APU_CHAN_CTRL
+      4  801f		       20 36 82 	      jsr	vsync_wait
+      5  8022		       20 36 82 	      jsr	vsync_wait
+      6  8025
+      7  8025							; clear ram
+      8  8025		       a9 00		      lda	#0
+      9  8027		       aa		      tax
+     10  8028				   .ram_clear_loop
+     11  8028		       95 00		      sta	$0,x
+     12  802a		       e0 fe		      cpx	#$fe
+     13  802c		       b0 03		      bcs	.skip_stack
+     14  802e		       9d 00 01 	      sta	$100,x
+     15  8031				   .skip_stack
+     16  8031		       a9 ef		      lda	#$ef
+     17  8033		       9d 00 02 	      sta	$200,x
+     18  8036		       a9 00		      lda	#$00
+     19  8038		       9d 00 03 	      sta	$300,x
+     20  803b		       9d 00 04 	      sta	$400,x
+     21  803e		       9d 00 05 	      sta	$500,x
+     22  8041		       9d 00 06 	      sta	$600,x
+     23  8044		       9d 00 07 	      sta	$700,x
+     24  8047		       e8		      inx
+     25  8048		       d0 de		      bne	.ram_clear_loop
+     26  804a
+     27  804a		       20 2d 82 	      jsr	render_disable
+     28  804d		       a9 01		      lda	#$01
+     29  804f		       85 12		      sta	rng0
+     30  8051		       20 f4 81 	      jsr	rng_seed
+     31  8054
+     32  8054		       58		      cli
+     33  8055
+     34  8055		       20 1b 86 	      jsr	state_title_init
+     35  8058							;jsr state_explore_init
+     36  8058
+     37  8058
+     38  8058				   .endless
+     39  8058		       4c 58 80 	      jmp	.endless	; endless loop
+     40  805b
+     41  805b
+     42  805b
+     43  805b
+     44  805b
+     45  805b
+     46  805b
+     47  805b				   nmi_handler subroutine
+     48  805b
+     49  805b							; ~2250 cycles for PPU access (PAL is 7450 cycles)
+     50  805b							; "On NTSC, count on being able to copy 160 bytes 
+     51  805b							; to nametables or the palette using a moderately 
+     52  805b							; unrolled loop"
+     53  805b							; write 64 tiles?
+     54  805b							; write all palettes
+     55  805b							; oam dma
+     56  805b
+      0  805b					      SAVE_REGS		; 13 cycles
+      1  805b		       48		      pha
+      2  805c		       8a		      txa
+      3  805d		       48		      pha
+      4  805e		       98		      tya
+      5  805f		       48		      pha
+     58  8060
+     59  8060							; enable NMI lockout
+     60  8060		       a5 01		      lda	nmi_lockout
+     61  8062		       c9 00		      cmp	#$00
+     62  8064		       f0 03		      beq	.no_lock
+     63  8066		       4c a4 80 	      jmp	.nmi_end
+     64  8069				   .no_lock
+     65  8069		       e6 01		      inc	nmi_lockout
+     66  806b
+     67  806b							; PPU vBLANK STUFF
+     68  806b
+     69  806b							; OAM DMA	513 cycles
+     70  806b		       a5 13		      lda	oam_disable
+     71  806d		       d0 05		      bne	.oam_skip
+     72  806f		       a9 02		      lda	#$02
+     73  8071		       8d 14 40 	      sta	PPU_OAM_DMA
+     74  8074				   .oam_skip
+     75  8074
+     76  8074							;/*
+     77  8074							;	; PALETTE RENDER 
+     78  8074							;	; old method: 12 + 32 x 7 = 236 cycles
+     79  8074							;	; current method: 90 (+ 64 for sprites) = 154 cycles
+     80  8074							;	PPU_ADDR_SET $3f00	; 12 cycles
+     81  8074							;	tsx			; 14
+     82  8074							;	stx temp02		; 17
+     83  8074							;	ldx #$ff		; 19
+     84  8074							;	txs			; 21
+     85  8074							;	PPU_POPSLIDE 32  ; 8 cycles each
+     86  8074							;
+     87  8074							;	ldx temp02		; 88
+     88  8074							;	txs			; 90
+     89  8074							;*/
+     90  8074
+     91  8074							; SCROLL POS	17 cycles
+     92  8074		       2c 02 20 	      bit	PPU_STATUS
+     93  8077		       a5 1b		      lda	scroll_x
+     94  8079		       8d 05 20 	      sta	PPU_SCROLL
+     95  807c		       a5 1c		      lda	scroll_y
+     96  807e		       8d 05 20 	      sta	PPU_SCROLL
+     97  8081
+     98  8081							; NAMETABLE++	
+     99  8081		       a5 1d		      lda	scroll_nm
+    100  8083		       29 03		      and	#$03
+    101  8085		       09 88		      ora	#CTRL_NMI|CTRL_SPR_1000
+    102  8087		       8d 00 20 	      sta	PPU_CTRL
+    103  808a		       a5 16		      lda	ppu_mask_emph
+    104  808c							;lda #$80
+    105  808c		       09 1e		      ora	#MASK_BG|MASK_SPR|MASK_SPR_CLIP|MASK_BG_CLIP
+    106  808e		       8d 01 20 	      sta	PPU_MASK
+    107  8091
+    108  8091							; hope everything above was under
+    109  8091							; ~2250 cycles!
+    110  8091
+    111  8091		       20 b4 82 	      jsr	controller_read
+    112  8094
+    113  8094		       e6 00		      inc	wtf
+    114  8096
+    115  8096		       20 5c 85 	      jsr	state_jmp_to
+    116  8099
+    117  8099							; disable NMI lockout
+    118  8099		       a9 00		      lda	#$00
+    119  809b		       85 01		      sta	nmi_lockout
+    120  809d
+    121  809d
+    122  809d		       a5 16		      lda	ppu_mask_emph
+    123  809f		       09 1e		      ora	#MASK_BG|MASK_SPR|MASK_SPR_CLIP|MASK_BG_CLIP
+    124  80a1		       8d 01 20 	      sta	PPU_MASK
+    125  80a4
+    126  80a4				   .nmi_end
+      0  80a4					      RESTORE_REGS		; 16 cycles
+      1  80a4		       68		      pla
+      2  80a5		       a8		      tay
+      3  80a6		       68		      pla
+      4  80a7		       aa		      tax
+      5  80a8		       68		      pla
+    128  80a9		       40		      rti
+    129  80aa
+------- FILE new_name.asm
+------- FILE common.asm LEVEL 2 PASS 2
+      0  80aa					      include	"common.asm"
+      1  80aa
+      2  80aa
+      3  80aa							;;;;; SUBROUTINES
+      4  80aa
+      5  80aa
+      6  80aa				   nametable_fill subroutine
+      7  80aa							; a = nametable high address
+      8  80aa							; temp00 = fill tile
+      9  80aa							; temp01 = fill attribute
+     10  80aa							; requires render_disable status
+     11  80aa		       8d 06 20 	      sta	PPU_ADDR
+     12  80ad		       a9 00		      lda	#$00
+     13  80af		       8d 06 20 	      sta	PPU_ADDR
+     14  80b2		       8d 00 20 	      sta	PPU_CTRL
+     15  80b5		       aa		      tax
+     16  80b6		       a5 02		      lda	temp00
+     17  80b8				   .loop0
+     18  80b8		       8d 07 20 	      sta	PPU_DATA
+     19  80bb		       e8		      inx
+     20  80bc		       d0 fa		      bne	.loop0
+     21  80be				   .loop1
+     22  80be		       8d 07 20 	      sta	PPU_DATA
+     23  80c1		       e8		      inx
+     24  80c2		       d0 fa		      bne	.loop1
+     25  80c4				   .loop2
+     26  80c4		       8d 07 20 	      sta	PPU_DATA
+     27  80c7		       e8		      inx
+     28  80c8		       d0 fa		      bne	.loop2
+     29  80ca				   .loop3
+     30  80ca		       8d 07 20 	      sta	PPU_DATA
+     31  80cd		       e8		      inx
+     32  80ce		       e0 c0		      cpx	#$c0
+     33  80d0		       d0 f8		      bne	.loop3
+     34  80d2							; attributes here
+     35  80d2		       a5 03		      lda	temp01
+     36  80d4				   .attr_loop
+     37  80d4		       8d 07 20 	      sta	PPU_DATA
+     38  80d7		       e8		      inx
+     39  80d8		       d0 fa		      bne	.attr_loop
+     40  80da		       60		      rts
+     41  80db
+     42  80db
+     43  80db				   nametable_load subroutine
+     44  80db							; a = nametable high address
+     45  80db							; temp00 = .nam lo address
+     46  80db							; temp01 = .nam hi address
+     47  80db		       8d 06 20 	      sta	PPU_ADDR
+     48  80de		       a9 00		      lda	#$00
+     49  80e0		       8d 06 20 	      sta	PPU_ADDR
+     50  80e3		       8d 00 20 	      sta	PPU_CTRL
+     51  80e6		       a8		      tay
+     52  80e7				   .loop0
+     53  80e7		       b1 02		      lda	(temp00),y
+     54  80e9		       8d 07 20 	      sta	PPU_DATA
+     55  80ec		       c8		      iny
+     56  80ed		       d0 f8		      bne	.loop0
+     57  80ef		       e6 03		      inc	temp01
+     58  80f1				   .loop1
+     59  80f1		       b1 02		      lda	(temp00),y
+     60  80f3		       8d 07 20 	      sta	PPU_DATA
+     61  80f6		       c8		      iny
+     62  80f7		       d0 f8		      bne	.loop1
+     63  80f9		       e6 03		      inc	temp01
+     64  80fb				   .loop2
+     65  80fb		       b1 02		      lda	(temp00),y
+     66  80fd		       8d 07 20 	      sta	PPU_DATA
+     67  8100		       c8		      iny
+     68  8101		       d0 f8		      bne	.loop2
+     69  8103		       e6 03		      inc	temp01
+     70  8105				   .loop3
+     71  8105		       b1 02		      lda	(temp00),y
+     72  8107		       8d 07 20 	      sta	PPU_DATA
+     73  810a		       c8		      iny
+     74  810b		       d0 f8		      bne	.loop3
+     75  810d		       60		      rts
+     76  810e
+     77  810e
+     78  810e
+     79  810e				   shift_divide_7_into_8 subroutine
+     80  810e							; kills x
+     81  810e							; temp00 dividend
+     82  810e							; temp01 divisor
+     83  810e							; RETURNS
+     84  810e							; A = remainder
+     85  810e							; temp00 = result
+     86  810e							; temp01 = remainder
+     87  810e		       a2 08		      ldx	#$08
+     88  8110		       a9 00		      lda	#$00
+     89  8112		       18		      clc
+     90  8113				   .loop
+     91  8113		       06 02		      asl	temp00
+     92  8115		       2a		      rol
+     93  8116		       c5 03		      cmp	temp01
+     94  8118		       90 04		      bcc	.no_sub
+     95  811a		       e5 03		      sbc	temp01
+     96  811c		       e6 02		      inc	temp00
+     97  811e				   .no_sub
+     98  811e		       ca		      dex
+     99  811f		       d0 f2		      bne	.loop
+    100  8121		       85 03		      sta	temp01
+    101  8123		       60		      rts
+    102  8124
+    103  8124
+    104  8124				   shift_divide_7_into_16 subroutine
+    105  8124							; kills x
+    106  8124							; temp00 dividend lo
+    107  8124							; temp01 dividend hi
+    108  8124							; temp02 divisor
+    109  8124							; RETURNS
+    110  8124							; A = remainder
+    111  8124							; temp00 = result
+    112  8124							; temp01 = remainder
+    113  8124		       a2 10		      ldx	#16
+    114  8126		       a9 00		      lda	#0
+    115  8128				   .loop
+    116  8128		       06 02		      asl	temp00
+    117  812a		       26 03		      rol	temp01
+    118  812c		       2a		      rol
+    119  812d		       c5 04		      cmp	temp02
+    120  812f		       90 04		      bcc	.no_sub
+    121  8131		       e5 04		      sbc	temp02
+    122  8133		       e6 02		      inc	temp00
+    123  8135				   .no_sub
+    124  8135		       ca		      dex
+    125  8136		       d0 f0		      bne	.loop
+    126  8138		       85 03		      sta	temp01
+    127  813a		       60		      rts
+    128  813b
+    129  813b
+    130  813b				   shift_divide_15_into_16 subroutine
+    131  813b							; kills x y
+    132  813b							; temp00 = dividend lo
+    133  813b							; temp01 = dividend hi
+    134  813b							; temp02 = divisor lo
+    135  813b							; temp03 = divisor hi
+    136  813b							; RETURNS
+    137  813b							; temp00 = result (lo only)
+    138  813b							; temp04 = remainder lo
+    139  813b							; temp05 = remainder hi
+    140  813b
+    141  813b		       a9 00		      lda	#0	; zero out remainder
+    142  813d		       85 06		      sta	temp04
+    143  813f		       85 07		      sta	temp05
+    144  8141		       a2 10		      ldx	#16
+    145  8143
+    146  8143				   .loop
+    147  8143		       06 02		      asl	temp00
+    148  8145		       26 03		      rol	temp01
+    149  8147		       26 06		      rol	temp04
+    150  8149		       26 07		      rol	temp05
+    151  814b		       a5 06		      lda	temp04
+    152  814d		       38		      sec
+    153  814e		       e5 04		      sbc	temp02	; check if divisor fits
+    154  8150		       a8		      tay
+    155  8151		       a5 07		      lda	temp05
+    156  8153		       e5 05		      sbc	temp03
+    157  8155		       90 06		      bcc	.skip
+    158  8157		       85 07		      sta	temp05
+    159  8159		       84 06		      sty	temp04
+    160  815b		       e6 02		      inc	temp00	; XXX could add result hi byte 
+    161  815d				   .skip
+    162  815d		       ca		      dex
+    163  815e		       d0 e3		      bne	.loop
+    164  8160		       60		      rts
+    165  8161
+    166  8161
+    167  8161				   shift_multiply subroutine
+    168  8161							; shift + add multiplication
+    169  8161							; kills x
+    170  8161							; temp00, temp01 in = factors
+    171  8161							; returns little endian 16bit val
+    172  8161							;	   at temp01, temp00
+    173  8161		       a9 00		      lda	#$00
+    174  8163		       a2 08		      ldx	#$08
+    175  8165		       46 02		      lsr	temp00
+    176  8167				   .loop
+    177  8167		       90 03		      bcc	.no_add
+    178  8169		       18		      clc
+    179  816a		       65 03		      adc	temp01
+    180  816c				   .no_add
+    181  816c		       6a		      ror
+    182  816d		       66 02		      ror	temp00
+    183  816f		       ca		      dex
+    184  8170		       d0 f5		      bne	.loop
+    185  8172		       85 03		      sta	temp01
+    186  8174		       60		      rts
+    187  8175
+    188  8175
+    189  8175				   shift_percent subroutine
+    190  8175							; a = 8bit base value
+    191  8175							; x = 8bit percentage
+    192  8175							; returns result in a
+    193  8175		       85 02		      sta	temp00
+    194  8177		       8a		      txa
+    195  8178		       49 ff		      eor	#$ff
+    196  817a		       85 03		      sta	temp01
+    197  817c		       a9 00		      lda	#$00	; 12 cycles
+    198  817e		       46 02		      lsr	temp00
+    199  8180		       06 03		      asl	temp01
+    200  8182		       b0 02		      bcs	.not_7
+    201  8184		       65 02		      adc	temp00
+    202  8186				   .not_7		; +15 per bit
+    203  8186		       46 02		      lsr	temp00
+    204  8188		       06 03		      asl	temp01
+    205  818a		       b0 02		      bcs	.not_6
+    206  818c		       65 02		      adc	temp00
+    207  818e				   .not_6
+    208  818e		       46 02		      lsr	temp00
+    209  8190		       06 03		      asl	temp01
+    210  8192		       b0 02		      bcs	.not_5
+    211  8194		       65 02		      adc	temp00
+    212  8196				   .not_5
+    213  8196		       46 02		      lsr	temp00
+    214  8198		       06 03		      asl	temp01
+    215  819a		       b0 02		      bcs	.not_4
+    216  819c		       65 02		      adc	temp00
+    217  819e				   .not_4
+    218  819e		       46 02		      lsr	temp00
+    219  81a0		       06 03		      asl	temp01
+    220  81a2		       b0 02		      bcs	.not_3
+    221  81a4		       65 02		      adc	temp00
+    222  81a6				   .not_3
+    223  81a6		       46 02		      lsr	temp00
+    224  81a8		       06 03		      asl	temp01
+    225  81aa		       b0 02		      bcs	.not_2
+    226  81ac		       65 02		      adc	temp00
+    227  81ae				   .not_2
+    228  81ae		       46 02		      lsr	temp00
+    229  81b0		       06 03		      asl	temp01
+    230  81b2		       b0 02		      bcs	.not_1
+    231  81b4		       65 02		      adc	temp00
+    232  81b6				   .not_1
+    233  81b6		       46 02		      lsr	temp00
+    234  81b8		       06 03		      asl	temp01
+    235  81ba		       b0 02		      bcs	.not_0
+    236  81bc		       65 02		      adc	temp00
+    237  81be				   .not_0		; 15 * 7 + 12
+    238  81be		       60		      rts		; +6 = 123 cycles
+    239  81bf
+    240  81bf
+    241  81bf				   registers_clear subroutine
+    242  81bf		       a9 00		      lda	#$00
+    243  81c1		       85 02		      sta	temp00
+    244  81c3		       85 03		      sta	temp01
+    245  81c5		       85 04		      sta	temp02
+    246  81c7		       85 05		      sta	temp03
+    247  81c9		       85 06		      sta	temp04
+    248  81cb		       85 07		      sta	temp05
+    249  81cd		       85 0a		      sta	state00
+    250  81cf		       85 0b		      sta	state01
+    251  81d1		       85 0c		      sta	state02
+    252  81d3		       85 0d		      sta	state03
+    253  81d5		       85 0e		      sta	state04
+    254  81d7		       85 0f		      sta	state05
+    255  81d9		       85 10		      sta	state06
+    256  81db		       85 11		      sta	state07
+    257  81dd		       60		      rts
+    258  81de
+    259  81de
+    260  81de				   rand       subroutine
+    261  81de		       a5 12		      lda	rng0
+    262  81e0		       4a		      lsr
+    263  81e1		       90 02		      bcc	.no_ex_or
+    264  81e3		       49 d4		      eor	#$d4
+    265  81e5				   .no_ex_or
+    266  81e5		       85 12		      sta	rng0
+    267  81e7		       60		      rts
+    268  81e8
+    269  81e8				   rng_next   subroutine
+    270  81e8		       4a		      lsr
+    271  81e9		       90 02		      bcc	.NoEor
+    272  81eb		       49 d4		      eor	#$d4
+    273  81ed				   .NoEor
+    274  81ed		       60		      rts
+    275  81ee
+    276  81ee				   rng_prev   subroutine
+    277  81ee		       0a		      asl
+    278  81ef		       90 02		      bcc	.NoEor
+    279  81f1		       49 a9		      eor	#$a9
+    280  81f3				   .NoEor
+    281  81f3		       60		      rts
+    282  81f4
+    283  81f4							; THESE ARE RIPPED FROM SMB2
+    284  81f4				   rng_seed   subroutine
+    285  81f4		       a9 86		      lda	#$86
+    286  81f6		       85 2a		      sta	rng_seed0
+    287  81f8		       60		      rts
+    288  81f9
+    289  81f9				   rng_update subroutine
+    290  81f9							; destroys Y
+    291  81f9		       a0 00		      ldy	#$00
+    292  81fb		       20 ff 81 	      jsr	rng_update_inner
+    293  81fe		       c8		      iny
+    294  81ff				   rng_update_inner
+    295  81ff		       a5 2a		      lda	rng_seed0
+    296  8201		       0a		      asl
+    297  8202		       0a		      asl
+    298  8203		       38		      sec
+    299  8204		       65 2a		      adc	rng_seed0
+    300  8206		       85 2a		      sta	rng_seed0
+    301  8208		       06 2b		      asl	rng_seed1
+    302  820a		       a9 20		      lda	#$20
+    303  820c		       24 2b		      bit	rng_seed1
+    304  820e		       90 04		      bcc	rng_reverse
+    305  8210		       f0 06		      beq	rng_eor
+    306  8212		       d0 02		      bne	rng_inc_eor
+    307  8214				   rng_reverse
+    308  8214		       d0 02		      bne	rng_eor
+    309  8216				   rng_inc_eor
+    310  8216		       e6 2b		      inc	rng_seed1
+    311  8218				   rng_eor
+    312  8218		       a5 2b		      lda	rng_seed1
+    313  821a		       45 2a		      eor	rng_seed0
+    314  821c		       99 2c 00 	      sta	rng_val0,y
+    315  821f		       60		      rts
+    316  8220
+    317  8220
+    318  8220				   render_enable
+    319  8220		       a9 90		      lda	#CTRL_NMI|CTRL_BG_1000
+    320  8222		       8d 00 20 	      sta	PPU_CTRL	; enable NMI
+    321  8225		       a5 16		      lda	ppu_mask_emph
+    322  8227		       09 1e		      ora	#MASK_BG|MASK_SPR|MASK_SPR_CLIP|MASK_BG_CLIP
+    323  8229		       8d 01 20 	      sta	PPU_MASK	; enable rendering
+    324  822c		       60		      rts
+    325  822d
+    326  822d
+    327  822d				   render_disable
+    328  822d		       a9 00		      lda	#$00
+    329  822f		       8d 01 20 	      sta	PPU_MASK
+    330  8232		       8d 00 20 	      sta	PPU_CTRL
+    331  8235		       60		      rts
+    332  8236
+    333  8236
+    334  8236				   vsync_wait
+    335  8236		       2c 02 20 	      bit	PPU_STATUS
+    336  8239		       10 fb		      bpl	vsync_wait
+    337  823b		       60		      rts
+    338  823c
+    339  823c
+    340  823c
+    341  823c
+    342  823c				   collision_detect subroutine
+    343  823c							; returns true/false in a
+    344  823c		       18		      clc
+    345  823d		       a5 1e		      lda	collision_0_x
+    346  823f		       65 20		      adc	collision_0_w
+    347  8241		       b0 22		      bcs	.no_collision	; make sure x+w is not less than x
+    348  8243		       c5 22		      cmp	collision_1_x
+    349  8245		       90 1e		      bcc	.no_collision
+    350  8247		       18		      clc
+    351  8248		       a5 22		      lda	collision_1_x
+    352  824a		       65 24		      adc	collision_1_w
+    353  824c		       c5 1e		      cmp	collision_0_x
+    354  824e		       90 15		      bcc	.no_collision
+    355  8250		       18		      clc
+    356  8251		       a5 1f		      lda	collision_0_y
+    357  8253		       65 21		      adc	collision_0_h
+    358  8255		       c5 23		      cmp	collision_1_y
+    359  8257		       90 0c		      bcc	.no_collision
+    360  8259		       18		      clc
+    361  825a		       a5 23		      lda	collision_1_y
+    362  825c		       65 25		      adc	collision_1_h
+    363  825e		       c5 1f		      cmp	collision_0_y
+    364  8260		       90 03		      bcc	.no_collision
+    365  8262				   .collision
+    366  8262		       a9 ff		      lda	#$ff
+    367  8264		       60		      rts
+    368  8265				   .no_collision
+    369  8265		       a9 00		      lda	#$00
+    370  8267		       60		      rts
+    371  8268
+    372  8268
+    373  8268
+    374  8268				   distance   subroutine
+    375  8268							; returns distance in a
+    376  8268		       38		      sec
+    377  8269		       a5 1e		      lda	collision_0_x
+    378  826b		       e5 22		      sbc	collision_1_x
+    379  826d		       b0 04		      bcs	.x_done
+    380  826f		       49 ff		      eor	#$ff	; abs()
+    381  8271		       69 01		      adc	#$01
+    382  8273				   .x_done
+    383  8273		       85 02		      sta	temp00	; x distance
+    384  8275		       38		      sec
+    385  8276		       a5 1f		      lda	collision_0_y
+    386  8278		       e5 23		      sbc	collision_1_y
+    387  827a		       b0 04		      bcs	.y_done
+    388  827c		       49 ff		      eor	#$ff	; abs()
+    389  827e		       69 01		      adc	#$01
+    390  8280				   .y_done
+    391  8280		       85 03		      sta	temp01	; y distance
+    392  8282							; check which is larger
+    393  8282							; then: max + min / 2
+    394  8282		       a5 02		      lda	temp00
+    395  8284		       c5 03		      cmp	temp01
+    396  8286		       b0 07		      bcs	.y_smaller
+    397  8288				   .x_smaller
+    398  8288		       a5 02		      lda	temp00
+    399  828a		       4a		      lsr
+    400  828b		       18		      clc
+    401  828c		       65 03		      adc	temp01
+    402  828e		       60		      rts
+    403  828f				   .y_smaller
+    404  828f		       a5 03		      lda	temp01
+    405  8291		       4a		      lsr
+    406  8292		       18		      clc
+    407  8293		       65 02		      adc	temp00
+    408  8295		       60		      rts
+    409  8296
+    410  8296
+    411  8296
+    412  8296							;;;;; CONTROLLER READING
+    413  8296
+    414  8296				   BUTTON_A   EQM	1 << 7
+    415  8296				   BUTTON_B   EQM	1 << 6
+    416  8296				   BUTTON_SELECT EQM	1 << 5
+    417  8296				   BUTTON_START EQM	1 << 4
+    418  8296				   BUTTON_UP  EQM	1 << 3
+    419  8296				   BUTTON_DOWN EQM	1 << 2
+    420  8296				   BUTTON_LEFT EQM	1 << 1
+    421  8296				   BUTTON_RIGHT EQM	1 << 0
+    422  8296
+    423  8296				   controller_poller subroutine
+    424  8296		       a2 01		      ldx	#$01
+    425  8298		       8e 16 40 	      stx	JOYPAD1
+    426  829b		       ca		      dex
+    427  829c		       8e 16 40 	      stx	JOYPAD1
+    428  829f		       a2 08		      ldx	#$08
+    429  82a1				   .read_loop
+    430  82a1		       ad 16 40 	      lda	JOYPAD1
+    431  82a4		       4a		      lsr
+    432  82a5		       26 02		      rol	temp00
+    433  82a7		       4a		      lsr
+    434  82a8		       26 03		      rol	temp01
+    435  82aa		       ca		      dex
+    436  82ab		       d0 f4		      bne	.read_loop
+    437  82ad		       a5 02		      lda	temp00
+    438  82af		       05 03		      ora	temp01
+    439  82b1		       85 02		      sta	temp00
+    440  82b3		       60		      rts
+    441  82b4
+    442  82b4				   controller_read subroutine
+    443  82b4		       20 96 82 	      jsr	controller_poller
+    444  82b7				   .checksum_loop
+    445  82b7		       a4 02		      ldy	temp00
+    446  82b9		       20 96 82 	      jsr	controller_poller
+    447  82bc		       c4 02		      cpy	temp00
+    448  82be		       d0 f7		      bne	.checksum_loop
+    449  82c0		       a5 02		      lda	temp00
+    450  82c2		       a8		      tay
+    451  82c3		       45 14		      eor	controls
+    452  82c5		       25 02		      and	temp00
+    453  82c7		       85 15		      sta	controls_d
+    454  82c9		       84 14		      sty	controls
+    455  82cb		       60		      rts
+    456  82cc
+    457  82cc
+    458  82cc				   sine_table
+    459  82cc		       80 83 86 89*	      hex	808386898c8f9295
+    460  82d4		       98 9b 9e a2*	      hex	989b9ea2a5a7aaad
+    461  82dc		       b0 b3 b6 b9*	      hex	b0b3b6b9bcbec1c4
+    462  82e4		       c6 c9 cb ce*	      hex	c6c9cbced0d3d5d7
+    463  82ec		       da dc de e0*	      hex	dadcdee0e2e4e6e8
+    464  82f4		       ea eb ed ee*	      hex	eaebedeef0f1f3f4
+    465  82fc		       f5 f6 f8 f9*	      hex	f5f6f8f9fafafbfc
+    466  8304		       fd fd fe fe*	      hex	fdfdfefefeffffff
+    467  830c		       ff ff ff ff*	      hex	fffffffffefefefd
+    468  8314		       fd fc fb fa*	      hex	fdfcfbfafaf9f8f6
+    469  831c		       f5 f4 f3 f1*	      hex	f5f4f3f1f0eeedeb
+    470  8324		       ea e8 e6 e4*	      hex	eae8e6e4e2e0dedc
+    471  832c		       da d7 d5 d3*	      hex	dad7d5d3d0cecbc9
+    472  8334		       c6 c4 c1 be*	      hex	c6c4c1bebcb9b6b3
+    473  833c		       b0 ad aa a7*	      hex	b0adaaa7a5a29e9b
+    474  8344		       98 95 92 8f*	      hex	9895928f8c898683
+    475  834c		       80 7c 79 76*	      hex	807c797673706d6a
+    476  8354		       67 64 61 5d*	      hex	6764615d5a585552
+    477  835c		       4f 4c 49 46*	      hex	4f4c494643413e3b
+    478  8364		       39 36 34 31*	      hex	393634312f2c2a28
+    479  836c		       25 23 21 1f*	      hex	2523211f1d1b1917
+    480  8374		       15 14 12 11*	      hex	151412110f0e0c0b
+    481  837c		       0a 09 07 06*	      hex	0a09070605050403
+    482  8384		       02 02 01 01*	      hex	0202010101000000
+    483  838c		       00 00 00 00*	      hex	0000000001010102
+    484  8394		       02 03 04 05*	      hex	0203040505060709
+    485  839c		       0a 0b 0c 0e*	      hex	0a0b0c0e0f111214
+    486  83a4		       15 17 19 1b*	      hex	1517191b1d1f2123
+    487  83ac		       25 28 2a 2c*	      hex	25282a2c2f313436
+    488  83b4		       39 3b 3e 41*	      hex	393b3e414346494c
+    489  83bc		       4f 52 55 58*	      hex	4f5255585a5d6164
+    490  83c4		       67 6a 6d 70*	      hex	676a6d707376797c
+    491  83cc
+    492  83cc
+    493  83cc
+    494  83cc				   decimal_x9_text_offset_80
+    495  83cc		       00 80 00 81*	      hex	0080008100820083008400850086008700880089
+    496  83e0		       81 80 81 81*	      hex	8180818181828183818481858186818781888189
+    497  83f4		       82 80 82 81*	      hex	8280828182828283828482858286828782888289
+    498  8408		       83 80 83 81*	      hex	8380838183828383838483858386838783888389
+    499  841c		       84 80 84 81*	      hex	8480848184828483848484858486848784888489
+    500  8430		       85 80 85 81*	      hex	8580858185828583858485858586858785888589
+    501  8444		       86 80 86 81*	      hex	8680868186828683868486858686868786888689
+    502  8458		       87 80 87 81*	      hex	8780878187828783878487858786878787888789
+    503  846c		       88 80 88 81*	      hex	8880888188828883888488858886888788888889
+    504  8480		       89 80 89 81*	      hex	8980898189828983898489858986898789888989
+    505  8494				   decimal_99_text_offset_80
+    506  8494		       80 80 80 81*	      hex	8080808180828083808480858086808780888089
+    507  84a8		       81 80 81 81*	      hex	8180818181828183818481858186818781888189
+    508  84bc		       82 80 82 81*	      hex	8280828182828283828482858286828782888289
+    509  84d0		       83 80 83 81*	      hex	8380838183828383838483858386838783888389
+    510  84e4		       84 80 84 81*	      hex	8480848184828483848484858486848784888489
+    511  84f8		       85 80 85 81*	      hex	8580858185828583858485858586858785888589
+    512  850c		       86 80 86 81*	      hex	8680868186828683868486858686868786888689
+    513  8520		       87 80 87 81*	      hex	8780878187828783878487858786878787888789
+    514  8534		       88 80 88 81*	      hex	8880888188828883888488858886888788888889
+    515  8548		       89 80 89 81*	      hex	8980898189828983898489858986898789888989
+    516  855c
+------- FILE new_name.asm
+     18  855c
+------- FILE state.asm LEVEL 2 PASS 2
+      0  855c					      include	"state.asm"
+      1  855c
+      2  855c
+      3  855c
+      4  855c					      MAC	state_set
+      5  855c					      lda	#<{1}
+      6  855c					      sta	state_jmp_lo
+      7  855c					      lda	#>{1}
+      8  855c					      sta	state_jmp_hi
+      9  855c					      ENDM
+     10  855c
+     11  855c
+     12  855c				   state_jmp_to subroutine
+     13  855c							; lets us rts back to vectors
+     14  855c							; banking could be added here
+     15  855c		       6c 17 00 	      jmp	(state_jmp_lo)
+     16  855f
+------- FILE new_name.asm
+------- FILE state_explore.asm LEVEL 2 PASS 2
+      0  855f					      include	"state_explore.asm"
+      1  855f
+      2  855f				   state_explore_palette
+      3  855f		       0c 11 12 1c	      hex	0c 11 12 1c
+      4  8563		       0c 0c 21 3c	      hex	0c 0c 21 3c
+      5  8567		       0c 06 16 27	      hex	0c 06 16 27
+      6  856b		       0c 0c 21 3c	      hex	0c 0c 21 3c
+      7  856f		       0c 0c 21 3c	      hex	0c 0c 21 3c
+      8  8573		       0c 0c 21 3c	      hex	0c 0c 21 3c
+      9  8577		       0c 0c 21 3c	      hex	0c 0c 21 3c
+     10  857b		       0c 0c 21 3c	      hex	0c 0c 21 3c
+     11  857f
+     12  857f
+     13  857f				   state_explore_init subroutine
+      0  857f					      STATE_SET	state_explore_update
+      1  857f		       a9 b2		      lda	#<state_explore_update
+      2  8581		       85 17		      sta	state_jmp_lo
+      3  8583		       a9 85		      lda	#>state_explore_update
+      4  8585		       85 18		      sta	state_jmp_hi
+     15  8587
+     16  8587		       20 2d 82 	      jsr	render_disable
+     17  858a
+     18  858a		       a9 3f		      lda	#$3f
+     19  858c		       8d 06 20 	      sta	PPU_ADDR
+     20  858f		       a9 00		      lda	#$00
+     21  8591		       8d 06 20 	      sta	PPU_ADDR
+     22  8594		       a2 00		      ldx	#$00
+     23  8596				   .pal_load_loop
+     24  8596		       bd 5f 85 	      lda	state_explore_palette,x
+     25  8599		       8d 07 20 	      sta	PPU_DATA
+     26  859c		       e8		      inx
+     27  859d		       e0 20		      cpx	#$20
+     28  859f		       d0 f5		      bne	.pal_load_loop
+     29  85a1
+     30  85a1		       a9 00		      lda	#<main_layout_nam
+     31  85a3		       85 02		      sta	temp00
+     32  85a5		       a9 80		      lda	#>main_layout_nam
+     33  85a7		       85 03		      sta	temp01
+     34  85a9		       a9 20		      lda	#$20
+     35  85ab		       20 db 80 	      jsr	nametable_load
+     36  85ae
+     37  85ae		       20 20 82 	      jsr	render_enable
+     38  85b1
+     39  85b1		       60		      rts
+     40  85b2
+     41  85b2
+     42  85b2				   state_explore_update subroutine
+     43  85b2		       60		      rts
+------- FILE new_name.asm
+------- FILE state_map.asm LEVEL 2 PASS 2
+      0  85b3					      include	"state_map.asm"
+      1  85b3
+      2  85b3							; 00 no room
+      3  85b3							; 01 empty room
+      4  85b3							; 02 key
+      5  85b3							; 40 exit
+      6  85b3							; ff player start
+      7  85b3
+      8  85b3				   map_data_00
+      9  85b3		       40 00 00 00*	      hex	40 00 00 00 00 00 00 00
+     10  85bb		       01 00 00 01*	      hex	01 00 00 01 01 01 01 00
+     11  85c3		       01 00 00 01*	      hex	01 00 00 01 00 00 01 01
+     12  85cb		       01 01 01 01*	      hex	01 01 01 01 00 00 00 01
+     13  85d3		       00 00 01 01*	      hex	00 00 01 01 00 00 00 02
+     14  85db		       00 01 01 01*	      hex	00 01 01 01 00 01 01 00
+     15  85e3		       00 01 00 00*	      hex	00 01 00 00 00 01 01 01
+     16  85eb		       ff 01 01 01*	      hex	ff 01 01 01 01 01 00 00
+------- FILE new_name.asm
+------- FILE state_title.asm LEVEL 2 PASS 2
+      0  85f3					      include	"state_title.asm"
+      1  85f3
+      2  85f3				   state_title_palette
+      3  85f3		       0f 01 22 35	      hex	0f 01 22 35
+      4  85f7		       0f 01 22 35	      hex	0f 01 22 35
+      5  85fb		       0f 01 22 35	      hex	0f 01 22 35
+      6  85ff		       0f 01 22 35	      hex	0f 01 22 35
+      7  8603		       0f 01 22 35	      hex	0f 01 22 35
+      8  8607		       0f 01 22 35	      hex	0f 01 22 35
+      9  860b		       0f 01 22 35	      hex	0f 01 22 35
+     10  860f		       0f 01 22 35	      hex	0f 01 22 35
+     11  8613
+     12  8613
+     13  8613				   str_title
+     14  8613		       4e 45 57 5f*	      byte.b	"NEW_NAME"
+     15  861b
+     16  861b
+     17  861b				   state_title_init subroutine
+      0  861b					      STATE_SET	state_title_update
+      1  861b		       a9 65		      lda	#<state_title_update
+      2  861d		       85 17		      sta	state_jmp_lo
+      3  861f		       a9 86		      lda	#>state_title_update
+      4  8621		       85 18		      sta	state_jmp_hi
+     19  8623
+     20  8623		       20 2d 82 	      jsr	render_disable
+     21  8626
+     22  8626		       a9 3f		      lda	#$3f
+     23  8628		       8d 06 20 	      sta	PPU_ADDR
+     24  862b		       a9 00		      lda	#$00
+     25  862d		       8d 06 20 	      sta	PPU_ADDR
+     26  8630		       a2 00		      ldx	#$00
+     27  8632				   .pal_load_loop
+     28  8632		       bd f3 85 	      lda	state_title_palette,x
+     29  8635		       8d 07 20 	      sta	PPU_DATA
+     30  8638		       e8		      inx
+     31  8639		       e0 20		      cpx	#$20
+     32  863b		       d0 f5		      bne	.pal_load_loop
+     33  863d
+     34  863d		       a9 20		      lda	#$20
+     35  863f		       85 02		      sta	temp00
+     36  8641		       a9 00		      lda	#$00
+     37  8643		       85 03		      sta	temp01
+     38  8645		       a9 00		      lda	#$00
+     39  8647		       20 aa 80 	      jsr	nametable_fill
+     40  864a
+     41  864a		       a9 21		      lda	#$21
+     42  864c		       8d 06 20 	      sta	PPU_ADDR
+     43  864f		       a9 8c		      lda	#$8c
+     44  8651		       8d 06 20 	      sta	PPU_ADDR
+     45  8654		       a2 00		      ldx	#$00
+     46  8656				   .title_loop
+     47  8656		       bd 13 86 	      lda	str_title,x
+     48  8659		       8d 07 20 	      sta	PPU_DATA
+     49  865c		       e8		      inx
+     50  865d		       e0 08		      cpx	#$08
+     51  865f		       d0 f5		      bne	.title_loop
+     52  8661
+     53  8661		       20 20 82 	      jsr	render_enable
+     54  8664
+     55  8664		       60		      rts
+     56  8665
+     57  8665				   state_title_update subroutine
+     58  8665		       a5 15		      lda	controls_d
+     59  8667		       f0 03		      beq	.do_nothing
+     60  8669		       20 7f 85 	      jsr	state_explore_init
+     61  866c				   .do_nothing
+     62  866c		       60		      rts
+------- FILE new_name.asm
+------- FILE state_win.asm LEVEL 2 PASS 2
+      0  866d					      include	"state_win.asm"
+------- FILE new_name.asm
+     24  866d
+     25  e000					      org	$0e000
+     26  e000					      rorg	$e000
+     27  e000
+     28  e000
+     29  e000							;;;;; CPU VECTORS
+     30  12000 ????				       seg	VECTORS
+     31  fffa					      org	$0fffa
+     32  fffa					      rorg	$fffa	; start at address $fffa
+     33  fffa		       5b 80		      .word.w	nmi_handler	; $fffa vblank nmi
+     34  fffc		       00 80		      .word.w	cart_start	; $fffc reset
+     35  fffe		       5b 80		      .word.w	nmi_handler	; $fffe irq / brk
+     36  10000
+     37  10000
+     38  10000							;;;;; GRAPHX
+     39  10000				    grfx_offset EQM	$10000
+     40  10000
+     41  10000					       org	$0000+grfx_offset
+     42  10000					       incbin	"./assets/ascii.chr"
+     43  11000					       incbin	"./assets/ascii.chr"
+     44  12000
+     45  12000							;	org $3fff+grfx_offset
+     46  12000							;	byte 0
+     47  12000
