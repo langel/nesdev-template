@@ -16,6 +16,10 @@ main_layout_nam:
 	include "vectors.asm"
 	include "common.asm"
 
+	include "ents.asm"
+	include "ent_tables.asm"
+	;include "ent/.asm"
+
 	include "state.asm"
 	include "state_explore.asm"
 	include "state_map.asm"
