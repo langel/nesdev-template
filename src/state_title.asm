@@ -52,6 +52,12 @@ state_title_init: subroutine
 
 	jsr render_enable
 
+	lda #$00
+	sta temp05
+	lda #$20
+	sta temp06
+	jsr ent_ball_spawn
+
 	rts
 
 state_title_update: subroutine
@@ -59,4 +65,7 @@ state_title_update: subroutine
 	beq .do_nothing
 	jsr state_explore_init
 .do_nothing
+
+	jsr ents_update
+
 	rts

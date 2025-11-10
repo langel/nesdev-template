@@ -12,13 +12,13 @@
 	org $08000 
 	rorg $8000
 main_layout_nam:
-	incbin "main_layout.nam"
 	include "vectors.asm"
 	include "common.asm"
 
 	include "ents.asm"
 	include "ent_tables.asm"
-	;include "ent/.asm"
+	include "ent/ball.asm"
+	include "ent/laser.asm"
 
 	include "state.asm"
 	include "state_explore.asm"

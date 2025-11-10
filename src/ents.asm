@@ -1,5 +1,8 @@
 
-state_shmup_ent_find_slot: subroutine
+ents_max  eqm #$1f
+
+
+ent_find_slot: subroutine
 	; returns empty slot in x
 	; x = 0xff if none found
 	ldx #$00
@@ -15,7 +18,7 @@ state_shmup_ent_find_slot: subroutine
 
 
 
-state_explore_ents_update: subroutine
+ents_update: subroutine
 	; debug visualization on
 	;lda #%00011111 ; b/w
 	;lda #%11111110 ; emph
@@ -32,6 +35,17 @@ state_explore_ents_update: subroutine
 	sta ent_slot_start
 	sta ent_slot
 
+	; sprites_clear
+	lda #$ff
+	ldx #$00
+.loop
+	sta $0200,x
+	inx
+	inx
+	inx
+	inx
+	bne .loop
+
 	lda wtf
 	lsr
 	and #$01
@@ -42,12 +56,12 @@ state_explore_ents_update: subroutine
 	ldx ent_slot
 	lda ent_type,x
 	beq .skip_forward_ent_slot
-	jsr state_explore_ents_update_jump
+	jsr ents_update_jump
 	sty ent_spr_ptr
 .skip_forward_ent_slot
 	inc ent_slot
 	lda ent_slot
-	and #$1f
+	and #ents_max
 	sta ent_slot
 	cmp ent_slot_start
 	bne .update_forward_loop
@@ -57,13 +71,13 @@ state_explore_ents_update: subroutine
 	ldx ent_slot
 	lda ent_type,x
 	beq .skip_backward_ent_slot
-	jsr state_explore_ents_update_jump
+	jsr ents_update_jump
 	sty ent_spr_ptr
 .skip_backward_ent_slot
 	dec ent_slot
 	lda ent_slot
 	bpl .dont_reset_ent_slot
-	lda #$1f
+	lda #ents_max
 	sta ent_slot
 .dont_reset_ent_slot
 	cmp ent_slot_start
@@ -76,11 +90,11 @@ state_explore_ents_update: subroutine
 	rts
 
 
-state_explore_ents_update_jump: subroutine
+ents_update_jump: subroutine
 	tax
-	lda state_explore_ent_update_lo,x
+	lda ent_update_lo,x
 	sta temp00
-	lda state_explore_ent_update_hi,x
+	lda ent_update_hi,x
 	sta temp01
 	ldx ent_slot
 	ldy ent_spr_ptr
