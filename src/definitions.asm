@@ -78,6 +78,7 @@ NES_MIRR_HORIZ	EQM 0
 NES_MIRR_VERT	EQM 1
 NES_MIRR_QUAD	EQM 8
 
+
 	MAC NES_HEADER
 	seg Header
 	org $7ff0
@@ -96,7 +97,7 @@ NES_MIRR_QUAD	EQM 8
 	org $8000
 	ENDM
 
-;;;;; NES_INIT SETUP MACRO (place at start)
+
 	MAC NES_INIT
 	sei			;disable IRQs
 	cld			;decimal mode not supported
@@ -114,36 +115,22 @@ NES_MIRR_QUAD	EQM 8
 	sta APU_CHAN_CTRL	;disable DMC, enable/init other channels.        
 	ENDM
 
-;;;;; NES_VECTORS - CPU vectors at end of address space
-	MAC NES_VECTORS
-	seg Vectors		; segment "Vectors"
-	org $fffa		; start at address $fffa
-	.word NMIHandler	; $fffa vblank nmi
-	.word Start		; $fffc reset
-	.word NMIHandler	; $fffe irq / brk
-	ENDM
         
-;;;;; BANK_SET <select> <data>
-	MAC BANK_SET
-	lda {1}
-	sta BANK_SELECT
-	lda {2}
-	sta BANK_DATA
-	ENDM
-
-;;;;; PPU_SETADDR <address> - set 16-bit PPU address
 	MAC PPU_ADDR_SET
+	; set 16bit address pointer in PPU
 	lda #>{1}	; upper byte
 	sta PPU_ADDR
 	lda #<{1}	; lower byte
 	sta PPU_ADDR
 	ENDM
 
-;;;;; PPU_SETVALUE <value> - feed 8-bit value to PPU
+
 	MAC PPU_SETVALUE
+	; feed {1} to PPU
 	lda #{1}
 	sta PPU_DATA
 	ENDM
+
 
 	MAC PPU_DECIMAL_00
 	asl
@@ -155,6 +142,7 @@ NES_MIRR_QUAD	EQM 8
 	sta PPU_DATA
 	ENDM
 
+
 	MAC PPU_DECIMAL_X0
 	asl
 	tax
@@ -164,16 +152,20 @@ NES_MIRR_QUAD	EQM 8
 	lda decimal_x9_text_offset_80,x
 	sta PPU_DATA
 	ENDM
-	
+
+
 	MAC PPU_FILL
-	; sends {1} to ppu data {2} times
+	; unwound loop
+	; sends {1} to PPU data {2} times
 	REPEAT {2}
 		lda #{1}
 		sta PPU_DATA
 	REPEND
 	ENDM
 
+
 	MAC PPU_LOOP
+	; load {1} into PPU {2} times
 	lda #{1}
 	ldx #{2}
 .loop
@@ -181,8 +173,11 @@ NES_MIRR_QUAD	EQM 8
 	dex
 	bne .loop
 	ENDM
-	
+
+
 	MAC PPU_PLOT
+	; unwound loop
+	; reads {2} bytes to PPU starting at {1}
 .COUNT SET 0
 	REPEAT {2}
 		lda #{1}+.COUNT
@@ -191,8 +186,9 @@ NES_MIRR_QUAD	EQM 8
 	REPEND
 	ENDM
         
-;;;;; PPU_POPSLIDE <count>
+
 	MAC PPU_POPSLIDE
+	; popslide {1} times
 .COUNT	SET {1}
 	REPEAT .COUNT
 		pla
@@ -200,51 +196,54 @@ NES_MIRR_QUAD	EQM 8
 	REPEND
 	ENDM
 
-	MAC blit
+
+	MAC BLIT
 .COUNT SET {1}
 	REPEAT .COUNT
 		bit $2002
 	REPEND
+ENDM
+
+
+	MAC INC_X
+.COUNT SET {1}
+	REPEAT .COUNT
+		inx
+	REPEND
 	ENDM
 
-	MAC nops
+
+	MAC INC_Y
+.COUNT SET {1}
+	REPEAT .COUNT
+		iny
+	REPEND
+	ENDM
+
+
+	MAC NOPS
 .COUNT SET {1}
 	REPEAT .COUNT
 		nop
 	REPEND
 	ENDM
 
-	MAC shift_l
+
+	MAC SHIFT_L
 .COUNT SET {1}
 	REPEAT .COUNT
 		asl
 	REPEND
 	ENDM
 
-	MAC shift_r
+
+	MAC SHIFT_R
 .COUNT SET {1}
 	REPEAT .COUNT
 		lsr
 	REPEND
 	ENDM
 
-;;;;; MMC3 stuff
-	MAC IRQ_SET
-	lda {1}
-	sta $c000 ; latch
-	sta $c001 ; reload
-	sta $e001 ; enable
-	ENDM
-	
-	MAC IRQ_UPDATE
-	sta $c000 ; latch
-	sta $e001 ; enable
-	sta $c001 ; reload
-	ENDM
-
-	MAC IRQ_DISABLE
-	sta $e000 ; disable
-	ENDM
         
 ; example of iterator with index
 	MAC state_char_equip_anim_popslider 
