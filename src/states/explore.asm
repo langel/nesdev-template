@@ -27,13 +27,6 @@ state_explore_init: subroutine
 	cpx #$20
 	bne .pal_load_loop
 
-	lda #<main_layout_nam
-	sta temp00
-	lda #>main_layout_nam
-	sta temp01
-	lda #$20
-	jsr nametable_load
-
 	jsr render_enable
 
 	rts

@@ -1,17 +1,19 @@
 
 	processor 6502
 
+	seg.u ZEROPAGE
+	org $0000
 	include "definitions.asm"
 	include "zero_page.asm"
 
-	; HEADER
+	seg HEADER
+	org $7ff0
 	; mapper, PRGs (16k), CHRs (8k), mirror, ram expansion
 	NES_HEADER 0, 2, 1, NES_MIRR_HORIZ, 0
 
-	seg DATA_BANKS
+	seg CODE
 	org $08000 
 	rorg $8000
-main_layout_nam:
 	include "vectors.asm"
 	include "common.asm"
 
@@ -25,7 +27,6 @@ main_layout_nam:
 	include "states/map.asm"
 	include "states/title.asm"
 	include "states/win.asm"
-
 	org $0e000 
 	rorg $e000
 

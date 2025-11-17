@@ -82,8 +82,6 @@ NES_MIRR_QUAD	EQM 8
 
 
 	MAC NES_HEADER
-	seg Header
-	org $7ff0
 .NES_MAPPER	SET {1}	;mapper number
 .NES_PRG_BANKS	SET {2}	;number of 16K PRG banks, change to 2 for NROM256
 .NES_CHR_BANKS	SET {3}	;number of 8K CHR banks (0 = RAM)
@@ -95,8 +93,6 @@ NES_MIRR_QUAD	EQM 8
 	byte .NES_MIRRORING|(.NES_MAPPER<<4)|.NES_RAM_EXP
 	byte .NES_MAPPER&$f0
 	byte 0,0,0,0,0,0,0,0 ; reserved, set to zero
-	seg Code
-	org $8000
 	ENDM
 
 
@@ -123,7 +119,7 @@ NES_MIRR_QUAD	EQM 8
 	REPEAT .COUNT
 		bit $2002
 	REPEND
-ENDM
+	ENDM
 
 
 	MAC INC_X
