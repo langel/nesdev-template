@@ -6,4 +6,4 @@ padded_count=$(printf "%0${padding_length}d" "$count")
 backup="new_name__$padded_count.nes"	
 	
 echo $backup
-cp rom.nes exports/$backup
+cp new_name.nes exports/$backup
