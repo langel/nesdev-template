@@ -15,16 +15,16 @@ main_layout_nam:
 	include "vectors.asm"
 	include "common.asm"
 
-	include "ents.asm"
+	include "ent.asm"
 	include "ent_tables.asm"
-	include "ent/ball.asm"
-	include "ent/laser.asm"
+	include "ents/ball.asm"
+	include "ents/laser.asm"
 
 	include "state.asm"
-	include "state_explore.asm"
-	include "state_map.asm"
-	include "state_title.asm"
-	include "state_win.asm"
+	include "states/explore.asm"
+	include "states/map.asm"
+	include "states/title.asm"
+	include "states/win.asm"
 
 	org $0e000 
 	rorg $e000
