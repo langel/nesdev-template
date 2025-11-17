@@ -21,17 +21,19 @@ APU_DMC_CTRL    EQM $4010
 APU_CHAN_CTRL   EQM $4015
 APU_FRAME       EQM $4017
 
-JOYPAD1		EQM $4016
-JOYPAD2		EQM $4017
+JOYPAD1         EQM $4016
+JOYPAD2         EQM $4017
 
-BANK_SELECT     EQM $8000
-BANK_DATA       EQM $8001
-MIRRORING       EQM $a000
-RAM_PROTECT     EQM $a001
-IRQ_LATCH       EQM $c000
-IRQ_RELOAD      EQM $c001
-IRQ_DISABLE     EQM $e000
-IRQ_ENABLE      EQM $e001
+JOYPAD1         EQM $4016
+JOYPAD2         EQM $4017
+BUTTON_A        EQM 1 << 7
+BUTTON_B        EQM 1 << 6
+BUTTON_SELECT   EQM 1 << 5
+BUTTON_START    EQM 1 << 4
+BUTTON_UP     	 EQM 1 << 3
+BUTTON_DOWN   	 EQM 1 << 2
+BUTTON_LEFT   	 EQM 1 << 1
+BUTTON_RIGHT  	 EQM 1 << 0
 
 ; NOTE: I've put this outside of the PPU & APU, because it is a feature
 ; of the APU that is primarily of use to the PPU.
@@ -115,6 +117,38 @@ NES_MIRR_QUAD	EQM 8
 	sta APU_CHAN_CTRL	;disable DMC, enable/init other channels.        
 	ENDM
 
+
+	MAC BLIT
+.COUNT SET {1}
+	REPEAT .COUNT
+		bit $2002
+	REPEND
+ENDM
+
+
+	MAC INC_X
+.COUNT SET {1}
+	REPEAT .COUNT
+		inx
+	REPEND
+	ENDM
+
+
+	MAC INC_Y
+.COUNT SET {1}
+	REPEAT .COUNT
+		iny
+	REPEND
+	ENDM
+
+
+	MAC NOPS
+.COUNT SET {1}
+	REPEAT .COUNT
+		nop
+	REPEND
+	ENDM
+
         
 	MAC PPU_ADDR_SET
 	; set 16bit address pointer in PPU
@@ -122,13 +156,6 @@ NES_MIRR_QUAD	EQM 8
 	sta PPU_ADDR
 	lda #<{1}	; lower byte
 	sta PPU_ADDR
-	ENDM
-
-
-	MAC PPU_SETVALUE
-	; feed {1} to PPU
-	lda #{1}
-	sta PPU_DATA
 	ENDM
 
 
@@ -175,6 +202,16 @@ NES_MIRR_QUAD	EQM 8
 	ENDM
 
 
+	MAC PPU_POPSLIDE
+	; popslide {1} times
+.COUNT	SET {1}
+	REPEAT .COUNT
+		pla
+		sta PPU_DATA
+	REPEND
+	ENDM
+
+
 	MAC PPU_PLOT
 	; unwound loop
 	; reads {2} bytes to PPU starting at {1}
@@ -187,45 +224,25 @@ NES_MIRR_QUAD	EQM 8
 	ENDM
         
 
-	MAC PPU_POPSLIDE
-	; popslide {1} times
-.COUNT	SET {1}
-	REPEAT .COUNT
-		pla
-		sta PPU_DATA
-	REPEND
+	MAC PPU_PLOT_TEXT
+	; write string at {2} to PPU at {1}
+	; 00 terminated
+	PPU_SETADDR {1}
+	ldx #$00
+.text_loop
+	lda {2},x
+	beq .text_done
+	sta PPU_DATA
+	inx
+	jmp .text_loop
+.text_done
 	ENDM
 
 
-	MAC BLIT
-.COUNT SET {1}
-	REPEAT .COUNT
-		bit $2002
-	REPEND
-ENDM
-
-
-	MAC INC_X
-.COUNT SET {1}
-	REPEAT .COUNT
-		inx
-	REPEND
-	ENDM
-
-
-	MAC INC_Y
-.COUNT SET {1}
-	REPEAT .COUNT
-		iny
-	REPEND
-	ENDM
-
-
-	MAC NOPS
-.COUNT SET {1}
-	REPEAT .COUNT
-		nop
-	REPEND
+	MAC PPU_SETVALUE
+	; feed {1} to PPU
+	lda #{1}
+	sta PPU_DATA
 	ENDM
 
 
@@ -245,18 +262,6 @@ ENDM
 	ENDM
 
         
-; example of iterator with index
-	MAC state_char_equip_anim_popslider 
-	count	SET 0
-.loop	SET {1}
-	REPEAT .loop
-		lda $0120 + {2} + count
-		sta PPU_DATA
-		count	SET count + 1
-	REPEND
-	ENDM
-        
-;;;;; STATE RESET
 	MAC STATE_REGISTERS_RESET
 	lda #$00
 	sta state00
@@ -271,7 +276,7 @@ ENDM
 	sta scroll_y
 	ENDM
 
-;;;;; SAVE_REGS - save A/X/Y registers
+
 	MAC SAVE_REGS
 	pha
 	txa
@@ -280,7 +285,7 @@ ENDM
 	pha
 	ENDM
 
-;;;;; RESTORE_REGS - restore Y/X/A registers
+
 	MAC RESTORE_REGS
 	pla
 	tay
