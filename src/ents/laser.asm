@@ -1,4 +1,5 @@
 
+; ent_r0 target direction
 ent_laser_spawn: subroutine
 	jsr ent_find_slot
 	txa
@@ -8,8 +9,19 @@ ent_laser_spawn: subroutine
 	; load baddie position
 	lda temp05
 	sta ent_x,x
+	sta collision_0_x
 	lda temp06
 	sta ent_y,x
+	sta collision_0_y
+	; get target position
+	lda #$80
+	sta collision_1_x
+	lda #$60
+	sta collision_1_y
+	jsr arctan2_gpt
+	ldx ent_slot
+	ldy ent_spr_ptr
+	sta ent_r0,x
 .done
 	rts
 
@@ -26,7 +38,7 @@ ent_laser_update: subroutine
 	sta ent_y,x
 
 	cmp #249
-	bne .dont_despawn
+	bcc .dont_despawn
 	ent_despawn
 	rts
 .dont_despawn

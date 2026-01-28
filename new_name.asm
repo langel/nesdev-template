@@ -16,6 +16,7 @@
 	rorg $8000
 	include "vectors.asm"
 	include "common.asm"
+	include "common/arctan2.asm"
 
 	include "ent.asm"
 	include "ent_tables.asm"
