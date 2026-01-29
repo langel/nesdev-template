@@ -130,4 +130,19 @@ ents_update_jump: subroutine
 	sta ent_r8,x
 	ENDM
 
-
+	MAC ent_move_by_velocity
+	clc
+	lda ent_x_lo,x
+	adc ent_h_lo,x
+	sta ent_x_lo,x
+	lda ent_x,x
+	adc ent_h,x
+	sta ent_x,x
+	clc
+	lda ent_y_lo,x
+	adc ent_v_lo,x
+	sta ent_y_lo,x
+	lda ent_y,x
+	adc ent_v,x
+	sta ent_y,x
+	ENDM

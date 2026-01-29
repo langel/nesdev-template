@@ -19,19 +19,10 @@ ent_ball_spawn: subroutine
 
 ent_ball_update: subroutine
 
-/*
-	lda ent_x_lo,x
-	clc
-	adc #$97
-	sta ent_x_lo,x
-	lda ent_x,x
-	adc #$01
-	sta ent_x,x
-*/
 	; update sine counter
 	clc
 	lda ent_r0,x
-	adc #$97
+	adc #$20 ;97
 	sta ent_r0,x
 	lda ent_r1,x
 	adc #$00
@@ -45,7 +36,6 @@ ent_ball_update: subroutine
 	clc
 	adc #$40
 	sta ent_x,x
-	sta $a0
 	lda ent_r1,x
 	clc
 	adc #$40
@@ -55,26 +45,22 @@ ent_ball_update: subroutine
 	clc
 	adc #$20
 	sta ent_y,x
-	sta $a1
 
+/*
 	; arctan2 test
 	lda ent_x,x
 	sta collision_0_x
 	lda ent_y,x
 	sta collision_0_y
 	lda #$80
-	sta $c0
 	sta collision_1_x
 	sec
 	sbc ent_x,x
-	sta $e0
 	lda #$60
-	sta $c1
 	sta collision_1_y
 	sec
 	sbc ent_y,x
-	sta $e1
-	jsr arctan2_gpt
+	jsr arctan256
 	ldx ent_slot
 	ldy ent_spr_ptr
 
@@ -83,14 +69,50 @@ ent_ball_update: subroutine
 	and #$07
 	bne .dont_spawn_laser
 	lda ent_x,x
-	sta temp05
-	lda ent_y,x
 	sta temp06
+	lda ent_y,x
+	sta temp07
 	jsr ent_laser_spawn
 	ldx ent_slot
+	ldy ent_spr_ptr
 .dont_spawn_laser
+*/
 
+	lda wtf 
+	and #$3f
+	bne .dont_spawn_lasers
+	lda ent_x,x
+	sta temp06
+	lda ent_y,x
+	sta temp07
+	lda #$00
+	sta temp05
+	jsr ent_laser_spawn
+	lda #$20
+	sta temp05
+	jsr ent_laser_spawn
+	lda #$40
+	sta temp05
+	jsr ent_laser_spawn
+	lda #$60
+	sta temp05
+	jsr ent_laser_spawn
+	lda #$80
+	sta temp05
+	jsr ent_laser_spawn
+	lda #$a0
+	sta temp05
+	jsr ent_laser_spawn
+	lda #$c0
+	sta temp05
+	jsr ent_laser_spawn
+	lda #$e0
+	sta temp05
+	jsr ent_laser_spawn
+	ldx ent_slot
+.dont_spawn_lasers
 
+	ldy ent_spr_ptr
 ent_ball_render: subroutine
 
 	lda ent_x,x

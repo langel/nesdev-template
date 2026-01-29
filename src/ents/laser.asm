@@ -7,38 +7,58 @@ ent_laser_spawn: subroutine
 	lda #ent_laser_id
 	sta ent_type,x
 	; load baddie position
-	lda temp05
+	lda temp06
 	sta ent_x,x
 	sta collision_0_x
-	lda temp06
+	lda temp07
 	sta ent_y,x
 	sta collision_0_y
+	; stash laser ent slot
+	;stx temp07
+	/*
 	; get target position
 	lda #$80
 	sta collision_1_x
 	lda #$60
 	sta collision_1_y
-	jsr arctan2_gpt
-	ldx ent_slot
-	ldy ent_spr_ptr
+	jsr arctan256
+	ldx temp07
+	*/
+	; setup direction
+	lda temp05
 	sta ent_r0,x
+	lsr
+	lsr
+	tay
+	lda atan_velocity_1875_lo,y
+	sta ent_h_lo,x
+	lda atan_velocity_1875_hi,y
+	sta ent_h,x
+	lda ent_r0,x
+	clc
+	adc #$40
+	lsr
+	lsr
+	tay
+	lda atan_velocity_1875_lo,y
+	sta ent_v_lo,x
+	lda atan_velocity_1875_hi,y
+	sta ent_v,x
 .done
 	rts
 
 
 ent_laser_update: subroutine
 
+	ent_move_by_velocity
 
-	lda ent_y_lo,x
-	clc
-	adc #$27
-	sta ent_y_lo,x
+	lda ent_x,x
+	cmp #$02
+	bcc .do_despawn
 	lda ent_y,x
-	adc #$02
-	sta ent_y,x
-
 	cmp #249
 	bcc .dont_despawn
+.do_despawn
 	ent_despawn
 	rts
 .dont_despawn
