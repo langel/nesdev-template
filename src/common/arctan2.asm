@@ -19,6 +19,8 @@
 ; use temp04 as octant
 
 
+	; XXX modified from codebase64
+	; use arctan256 instead
 arctan2:		
 	; uses collision registers
 	; uses temp00 as octant
